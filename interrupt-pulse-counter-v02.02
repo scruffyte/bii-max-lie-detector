@@ -1,0 +1,251 @@
+/** C O N F I G U R A T I O N   B I T S ******************************/
+
+#pragma config FOSC = INTIO67, FCMEN = OFF, IESO = OFF                      // CONFIG1H
+#pragma config PWRT = OFF, BOREN = OFF, BORV = 30                           // CONFIG2L
+#pragma config WDTEN = OFF, WDTPS = 32768                                   // CONFIG2H
+#pragma config MCLRE = ON, LPT1OSC = OFF, PBADEN = ON, CCP2MX = PORTC       // CONFIG3H
+#pragma config STVREN = ON, LVP = OFF, XINST = OFF                          // CONFIG4L
+#pragma config CP0 = OFF, CP1 = OFF, CP2 = OFF, CP3 = OFF                   // CONFIG5L
+#pragma config CPB = OFF, CPD = OFF                                         // CONFIG5H
+#pragma config WRT0 = OFF, WRT1 = OFF, WRT2 = OFF, WRT3 = OFF               // CONFIG6L
+#pragma config WRTB = OFF, WRTC = OFF, WRTD = OFF                           // CONFIG6H
+#pragma config EBTR0 = OFF, EBTR1 = OFF, EBTR2 = OFF, EBTR3 = OFF           // CONFIG7L
+#pragma config EBTRB = OFF                                                  // CONFIG7H
+
+/** I N C L U D E S **************************************************/
+
+#include "p18f45k20.h"
+#include "ADC.h"
+#include <delays.h>
+
+/** D E F I N E S ****************************************************/
+
+#define CLEAR_SCREEN  	0b00000001
+#define FOUR_BIT  		0b00101100
+#define LINES_5X7  		0b00111000
+#define CURSOR_BLINK  	0b00001111
+#define CURSOR_RIGHT  	0b00000110
+
+#define DATA_PORT  LATD
+#define RS_PIN     PORTDbits.RD6
+#define E_PIN      PORTDbits.RD7
+
+/** V A R I A B L E S ***********************************************/
+
+#pragma udata   // declare statically allocated uinitialized variables
+int pulses = 0;
+int pulseUnit;
+int pulseTenths;
+
+/** I N T E R R U P T S *********************************************/
+
+// High priority interrupt vector
+
+#pragma code InterruptVectorHigh = 0x08
+void InterruptVectorHigh (void)
+{
+  _asm
+    goto InterruptServiceHigh //jump to interrupt routine
+  _endasm
+}
+
+// Low priority interrupt vector
+
+#pragma code InterruptVectorLow = 0x18
+void InterruptVectorLow (void)
+{
+  _asm
+    goto InterruptServiceLow //jump to interrupt routine
+  _endasm
+}
+
+/** F U N C T I O N S ***********************************************/
+
+//--- LCD ---//
+
+void Delay5milli(void)							//Suitable delay for LCD
+{
+    Delay1KTCYx(2);           						
+}
+
+void SetAddr(unsigned char DDaddr)
+{
+    DATA_PORT &= 0xf0;                      // Write upper nibble
+    DATA_PORT |= (((DDaddr | 0b10000000)>>4) & 0x0f);
+                        
+    RS_PIN = 0;                             // Set control bit
+    Delay5milli();
+    E_PIN = 1;                              // Clock the cmd and address in
+    Delay5milli();
+    E_PIN = 0;
+
+    DATA_PORT &= 0xf0;                      // Write lower nibble
+    DATA_PORT |= (DDaddr&0x0f);
+
+    Delay5milli();
+    E_PIN = 1;                              // Clock the cmd and address in
+    Delay5milli();
+    E_PIN = 0;
+}
+
+void WriteCmd(unsigned char cmd)
+{
+    DATA_PORT &= 0xf0;
+    DATA_PORT |= (cmd>>4)&0x0f;           
+    RS_PIN = 0;                     		// Set control signals for command
+    Delay5milli();
+    E_PIN = 1;                      		// Clock command in
+    Delay5milli();
+    E_PIN = 0;
+
+       	
+    DATA_PORT &= 0xf0;              		// Lower nibble interface
+    DATA_PORT |= cmd&0x0f;
+    Delay5milli();
+    E_PIN = 1;                      		// Clock command in
+    Delay5milli();
+    E_PIN = 0;
+}
+
+void WriteChar(char data)
+{
+    DATA_PORT &= 0xf0;
+    DATA_PORT |= ((data>>4)&0x0f);
+
+    RS_PIN = 1;                     		// Set control bits
+    Delay5milli();
+    E_PIN = 1;                      		// Clock nibble into LCD
+    Delay5milli();
+    E_PIN = 0;
+
+		    
+    DATA_PORT &= 0xf0;              		// Lower nibble interface
+    DATA_PORT |= (data&0x0f);
+        
+    Delay5milli();
+    E_PIN = 1;                      		// Clock nibble into LCD
+    Delay5milli();
+    E_PIN = 0;
+}
+
+void WriteString(const rom char *buffer)    
+{		 
+    while(*buffer)                  		// Write data to LCD up to null
+    {
+        Delay5milli();
+        WriteChar( *buffer);          		// Write character to LCD
+        buffer++;                     		// Increment buffer
+    }
+    return;
+}     
+
+//--- ADC ---//
+
+void ADC_Init(void)
+{ 	
+    // initialize the Analog-To-Digital converter.
+    // First, we need to make sure the AN0 pin is enabled as an analog input by putting a 1 in ANSEL bit 0
+
+	ANSEL = 0;	                         //turn off all other analog inputs
+	ANSELH = 0;
+ 	ANSELbits.ANS0 = 1;	                 // turn on RA0 analog
+
+    // Sets bits VCFG1 and VCFG0 in ADCON1 so the ADC voltage reference is VSS to VDD
+
+    ADCON1 = 0;
+    // ADFM = 0 (Left Justified) so we can easily read the 8 Most Significant bits from ADRESH
+    // Special Function Register
+	ADCON2 = 0b00111000;
+    // Select channel 0 (AN0) to read the AN0 voltage and turn on ADC
+    ADCON0 = 0b00000001;
+}
+
+unsigned char ADC_Convert(void)
+{
+    // start an ADC conversion and return the 8 most-significant bits of the result
+    ADCON0bits.GO_DONE = 1;             // start conversion
+    while (ADCON0bits.GO_DONE == 1);    // wait for it to complete
+    return ADRESH;                      // return high byte of result
+}
+
+// --- TIMER --- //
+
+
+/** VOID MAIN ********************************************************/
+
+#pragma code    // declare executable instructions
+
+void main(void)
+{
+    //---INIT I/O---//
+    
+    ANSEL  = 0;	                        	    //set all i/o to digital
+    ANSELH = 0;                                 //^^
+    TRISD  = 0b00000000;                 		//sets PORTd to output
+   	LATD   = 0b00000000;	                	//turns off PORTd outputs, good start position 
+    
+    TRISAbits.TRISA0 = 1;		                // TRISA0 = 1 RA0 = input for pot ADC
+    TRISBbits.TRISB0 = 1;		                // TRISB0 = 1 RB0 = input for pulse sensor
+
+    // Set up switch interrupt on INT0
+    INTCON2bits.INTEDG0 = 0;    // interrupt on falling edge of INT0 (switch pressed)
+    INTCONbits.INT0IF = 0;      // ensure flag is cleared
+    INTCONbits.INT0IE = 1;      // enable INT0 interrupt
+    // NOTE: INT0 is ALWAYS a high priority interrupt
+
+    // Set up global interrupts
+    RCONbits.IPEN = 1;          // Enable priority levels on interrupts
+    INTCONbits.GIEL = 1;        // Low priority interrupts allowed
+    INTCONbits.GIEH = 1;        // Interrupting enabled.
+
+	//---this code configures and tests the display---//
+ 	
+    WriteCmd ( 0x02 );							// sets 4bit operation
+	WriteCmd ( CLEAR_SCREEN );                  // clears the screen
+	WriteCmd ( FOUR_BIT & LINES_5X7 );			// sets 5x7 and multiline operation.
+	WriteCmd ( CURSOR_BLINK );					// blinks cursor
+	WriteCmd ( CURSOR_RIGHT  );					// moves cursor right	
+    WriteString("lcd test");                    // test the lcd and show the program is running
+    Delay1KTCYx(200);                           // wait a second
+    WriteCmd ( CLEAR_SCREEN );                   // clears the screen
+    
+    while(1)
+    {
+        
+        pulseTenths = pulses%10;
+        pulseUnit = pulses/10;
+        Delay1KTCYx(200);
+        WriteCmd( CLEAR_SCREEN);
+        WriteChar(0x30 + pulseUnit);
+        WriteChar(0x30 + pulseTenths);
+    }
+}
+
+/** INTERRUPT SERVICE ROUTINES **************************************/
+
+#pragma interrupt InterruptServiceHigh  // "interrupt" pragma also for high priority
+void InterruptServiceHigh(void)
+{
+    // Check to see what caused the interrupt
+    // (Necessary when more than 1 interrupt at a priority level)
+
+    // Check for INT0 interrupt
+    if (INTCONbits.INT0IF)
+    {
+        INTCONbits.INT0IF = 0; // clear (reset) flag
+        pulses++;
+    }
+}
+
+#pragma interruptlow InterruptServiceLow// "interruptlow" pragma for low priority
+void InterruptServiceLow(void)
+{
+    // Check to see what caused the interrupt
+    // (Necessary when more than 1 interrupt at a priority level)
+
+    // Check for Timer0 Interrupt
+    if  (INTCONbits.TMR0IF)
+    {
+        INTCONbits.TMR0IF = 0;          // clear (reset) flag
+    }
+}
