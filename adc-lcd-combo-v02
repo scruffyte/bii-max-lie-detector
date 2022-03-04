@@ -1,0 +1,192 @@
+/** C O N F I G U R A T I O N   B I T S ******************************/
+
+#pragma config FOSC = INTIO67, FCMEN = OFF, IESO = OFF                       // CONFIG1H
+#pragma config PWRT = OFF, BOREN = OFF, BORV = 30                        // CONFIG2L
+#pragma config WDTEN = OFF, WDTPS = 32768                                     // CONFIG2H
+#pragma config MCLRE = ON, LPT1OSC = OFF, PBADEN = ON, CCP2MX = PORTC       // CONFIG3H
+#pragma config STVREN = ON, LVP = OFF, XINST = OFF                          // CONFIG4L
+#pragma config CP0 = OFF, CP1 = OFF, CP2 = OFF, CP3 = OFF                   // CONFIG5L
+#pragma config CPB = OFF, CPD = OFF                                         // CONFIG5H
+#pragma config WRT0 = OFF, WRT1 = OFF, WRT2 = OFF, WRT3 = OFF               // CONFIG6L
+#pragma config WRTB = OFF, WRTC = OFF, WRTD = OFF                           // CONFIG6H
+#pragma config EBTR0 = OFF, EBTR1 = OFF, EBTR2 = OFF, EBTR3 = OFF           // CONFIG7L
+#pragma config EBTRB = OFF                                                  // CONFIG7H
+
+/** I N C L U D E S **************************************************/
+
+#include "p18f45k20.h"
+#include "ACD.h"
+#include <delays.h>
+
+#define CLEAR_SCREEN  	0b00000001
+#define FOUR_BIT  		0b00101100
+#define LINES_5X7  		0b00111000
+#define CURSOR_BLINK  	0b00001111
+#define CURSOR_RIGHT  	0b00000110
+
+#define DATA_PORT  LATD
+#define RS_PIN     PORTDbits.RD6
+#define E_PIN      PORTDbits.RD7
+
+//LCD functions:
+
+void Delay5milli(void)							//Suitable delay for LCD
+{
+Delay1KTCYx(2);           						
+}
+
+unsigned int adcint;
+
+void SetAddr(unsigned char DDaddr)
+{
+        DATA_PORT &= 0xf0;                      // Write upper nibble
+        DATA_PORT |= (((DDaddr | 0b10000000)>>4) & 0x0f);
+                        
+        RS_PIN = 0;                             // Set control bit
+      	Delay5milli();
+        E_PIN = 1;                              // Clock the cmd and address in
+        Delay5milli();
+        E_PIN = 0;
+
+		DATA_PORT &= 0xf0;                      // Write lower nibble
+        DATA_PORT |= (DDaddr&0x0f);
+
+		Delay5milli();
+        E_PIN = 1;                              // Clock the cmd and address in
+        Delay5milli();
+        E_PIN = 0;
+}
+
+void WriteCmd(unsigned char cmd)
+	{
+        DATA_PORT &= 0xf0;
+        DATA_PORT |= (cmd>>4)&0x0f;           
+        RS_PIN = 0;                     		// Set control signals for command
+        Delay5milli();
+        E_PIN = 1;                      		// Clock command in
+        Delay5milli();
+        E_PIN = 0;
+
+       	
+        DATA_PORT &= 0xf0;              		// Lower nibble interface
+        DATA_PORT |= cmd&0x0f;
+		Delay5milli();
+        E_PIN = 1;                      		// Clock command in
+        Delay5milli();
+        E_PIN = 0;
+	}
+
+void WriteChar(char data)
+{
+        DATA_PORT &= 0xf0;
+        DATA_PORT |= ((data>>4)&0x0f);
+
+		RS_PIN = 1;                     		// Set control bits
+        Delay5milli();
+        E_PIN = 1;                      		// Clock nibble into LCD
+        Delay5milli();
+        E_PIN = 0;
+
+		    
+        DATA_PORT &= 0xf0;              		// Lower nibble interface
+        DATA_PORT |= (data&0x0f);
+        
+        Delay5milli();
+        E_PIN = 1;                      		// Clock nibble into LCD
+        Delay5milli();
+        E_PIN = 0;
+}
+
+ void WriteString(const rom char *buffer)    
+{		 
+        while(*buffer)                  		// Write data to LCD up to null
+        {
+          Delay5milli();
+          WriteChar( *buffer);          		// Write character to LCD
+          buffer++;                     		// Increment buffer
+        }
+        return;
+}       
+   
+
+//ADC functions:
+
+void ADC_Init(void)
+{ 	
+	// initialize the Analog-To-Digital converter.
+    // First, we need to make sure the AN0 pin is enabled as an analog input by putting a 1 in ANSEL bit 0
+
+
+	ANSEL = 0;	//turn off all other analog inputs
+	ANSELH = 0;
+ 	ANSELbits.ANS0 = 1;	// turn on RA0 analog
+
+    // Sets bits VCFG1 and VCFG0 in ADCON1 so the ADC voltage reference is VSS to VDD
+
+    ADCON1 = 0;
+    
+    //
+    // ADFM = 0 (Left Justified) so we can easily read the 8 Most Significant bits from ADRESH
+    // Special Function Register
+    
+	ADCON2 = 0b00111000;
+
+    // Select channel 0 (AN0) to read the AN0 voltage and turn on ADC
+    ADCON0 = 0b00000001;
+
+}
+
+unsigned char ADC_Convert(void)
+
+{ // start an ADC conversion and return the 8 most-significant bits of the result
+    ADCON0bits.GO_DONE = 1;             // start conversion
+    while (ADCON0bits.GO_DONE == 1);    // wait for it to complete
+    return ADRESH;                      // return high byte of result
+
+}
+
+void main (void)
+{
+
+//SET UP LCD
+    
+   	ANSEL  = 0;	                        	    //turn off all analog inputs
+	ANSELH = 0; 
+   	TRISD  = 0b00000000;                 		//sets PORTd
+   	LATD   = 0b00000000;	                	//turns off PORTd outputs, good start position   	
+
+	// this code configures the display  
+ 	
+	WriteCmd ( 0x02 );							// sets 4bit operation
+	WriteCmd ( CLEAR_SCREEN );		
+	WriteCmd ( FOUR_BIT & LINES_5X7 );			// sets 5x7 and multiline operation.
+	WriteCmd ( CURSOR_BLINK );					// blinks cursor
+	WriteCmd ( CURSOR_RIGHT  );					// moves cursor right	
+
+//SET UP ADC
+    
+    // Init I/O
+	ANSEL = 0;	// Make ALL I/O digital TO BEGIN WITH
+	ANSELH = 0;
+	TRISAbits.TRISA0 = 1;		// TRISA0 = 1 RA0 = input
+
+    // ADCON1 is now set up in the InitADC() function.
+
+    // Init ADC
+    ADC_Init();                  // Call ADC_Init function
+	Delay10KTCYx(25);           //delay 25 x 10000 cycles Run To Cursor and Change RA0 voltage
+	WriteCmd ( CLEAR_SCREEN );
+    WriteString("lcd test");
+    Delay10KTCYx(25);
+    while(1){
+    ADC_Convert();
+    if(ADRESH >= 200) {
+    WriteCmd ( CLEAR_SCREEN );
+	WriteString ("larger than 512");
+	}
+    if(ADRESH <= 200){ 
+    WriteCmd ( CLEAR_SCREEN );
+    WriteString ("less than 512");
+    }
+    } 
+}
