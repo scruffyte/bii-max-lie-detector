@@ -17,30 +17,31 @@ PORTA = 0b00000000; //turns off PORTA outputs
 while (1) 
 { 
 
-PORTBbits.RA1 = 1; 
+PORTAbits.RA1 = 1; 
 
 Delay100TCYx(78);
  
-PORTBbits.RA1 = 0;
+PORTAbits.RA1 = 0;
  
 Delay100TCYx(78);
 
-PORTBbits.RA2 = 1; 
+PORTAbits.RA2 = 1; 
 
 Delay100TCYx(78);
  
-PORTBbits.RA2 = 0;
+PORTAbits.RA2 = 0;
  
 Delay100TCYx(78);
 
-PORTBbits.RA3 = 1; 
+PORTAbits.RA3 = 1; 
 
 Delay100TCYx(78);
  
-PORTBbits.RA3 = 0;
+PORTAbits.RA3 = 0;
  
 Delay100TCYx(78);
 
 }
  
  } 
+
