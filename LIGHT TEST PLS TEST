@@ -1,0 +1,46 @@
+
+#include <p18F45K20.h>
+
+#include <delays.h>
+
+void main (void)
+
+{
+
+
+TRISA = 0b00000000; //sets PORTA as all outputs
+
+PORTA = 0b00000000; //turns off PORTA outputs 
+
+
+
+while (1) 
+{ 
+
+PORTBbits.RA1 = 1; 
+
+Delay100TCYx(78);
+ 
+PORTBbits.RA1 = 0;
+ 
+Delay100TCYx(78);
+
+PORTBbits.RA2 = 1; 
+
+Delay100TCYx(78);
+ 
+PORTBbits.RA2 = 0;
+ 
+Delay100TCYx(78);
+
+PORTBbits.RA3 = 1; 
+
+Delay100TCYx(78);
+ 
+PORTBbits.RA3 = 0;
+ 
+Delay100TCYx(78);
+
+}
+ 
+ } 
