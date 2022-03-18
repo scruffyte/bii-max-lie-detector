@@ -17,27 +17,27 @@ LATA = 1; //turns off PORTA outputs
 while (1) 
 { 
 
-LATAbits.LATA1 = 1; 
+LATAbits.LATA1 = 0; 
 
 Delay1KTCYx(78);
  
-LATAbits.LATA1 = 0;
+LATAbits.LATA1 = 1;
  
 Delay1KTCYx(78);
 
-LATAbits.LATA2 = 1; 
+LATAbits.LATA2 = 0; 
 
 Delay1KTCYx(78);
  
-LATAbits.LATA2 = 0;
+LATAbits.LATA2 = 1;
  
 Delay1KTCYx(78);
 
-LATAbits.LATA3 = 1; 
+LATAbits.LATA3 = 0; 
 
 Delay1KTCYx(78);
  
-LATAbits.LATA3 = 0;
+LATAbits.LATA3 = 1;
  
 Delay1KTCYx(78);
 
