@@ -1,0 +1,35 @@
+1000000/4 = 250000
+
+250000/8 = 31250
+
+1/31250 = 32us
+
+1/32us = 31250 counts for 1s delay
+
+65535-31250 = 34285 initial timer set
+
+1000010111101110 in 16 bit
+
+10000101 = 133
+
+11101110 = 238
+
+
+
+with the timer starting from 0 the interval is about 2.08s which sounds about right (2.09 calculated)
+
+starting from 34286 we get about 620ms, so that means that 
+
+
+
+FUCK this I'll just divide the count by 1 / 2.09 = 0.478
+
+62500 for 4:1 prescale
+
+so 3035 initial set
+
+0000101111011011
+
+00001011
+
+11011011
