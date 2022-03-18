@@ -476,7 +476,7 @@ void main(void)
                     WriteChar(0x30 + dispUnits);
                     Delay1KTCYx(500);   
                     
-                    if( lieScore > lieBaseline )
+                    if( readingBPM > baselineBPM )
                     {
                         programFlame();           // write the custom flame characters to the LCD
 
