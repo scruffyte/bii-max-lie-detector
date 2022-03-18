@@ -484,9 +484,9 @@ void main(void)
                         {
                             lyingMessage();           // call tthe flame animation
                             lieLoop++;          	// increment the loop counter 1
-							LATAbits.LATA1 = 0; 
+							LATAbits.LATA1 = 1; 
 							Delay1KTCYx(78);
-							LATAbits.LATA1 = 1;
+							LATAbits.LATA1 = 0;
 
 
                         }
@@ -500,9 +500,9 @@ void main(void)
                         {
                             truthMessage();
                             truthLoop++;
-			    LATAbits.LATA2 = 0; 
+			    LATAbits.LATA2 = 1; 
 			    Delay1KTCYx(78);
-			    LATAbits.LATA2 = 1;
+			    LATAbits.LATA2 = 0;
                         }
                         truthLoop = 0;
                         goto start;                          // return to the start
