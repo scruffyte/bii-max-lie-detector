@@ -392,6 +392,7 @@ void main(void)
     
     start:                                      // program returns here once buttons are released
     WriteCmd( CLEAR_SCREEN );
+    LATA = 1;
     //--- check if a baseline has been taken and promp the user accordingly ---//
     if(baselineBPM == 0)
     {
@@ -479,7 +480,7 @@ void main(void)
                     {
                         programFlame();           // write the custom flame characters to the LCD
 
-                        while(lieLoop <= 5)     // loop the flame animation 5 times
+                        while(lieLoop <= 3)     // loop the flame animation 5 times
                         {
                             lyingMessage();           // call tthe flame animation
                             lieLoop++;          	// increment the loop counter 1
@@ -495,13 +496,13 @@ void main(void)
                     
                     else
                     {
-                        while(truthLoop <= 5)
+                        while(truthLoop <= 2)
                         {
                             truthMessage();
                             truthLoop++;
-							LATAbits.LATA2 = 0; 
-							Delay1KTCYx(78);
-							LATAbits.LATA2 = 1;
+			    LATAbits.LATA2 = 0; 
+			    Delay1KTCYx(78);
+			    LATAbits.LATA2 = 1;
                         }
                         truthLoop = 0;
                         goto start;                          // return to the start
